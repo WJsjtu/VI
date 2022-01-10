@@ -1,0 +1,14 @@
+prefix=/Users/runner/work/ffmpeg-osx/ffmpeg-osx/install
+exec_prefix=${prefix}
+libdir=/Users/runner/work/ffmpeg-osx/ffmpeg-osx/install/lib
+includedir=/Users/runner/work/ffmpeg-osx/ffmpeg-osx/install/include
+
+Name: libswscale
+Description: FFmpeg image rescaling library
+Version: 5.9.100
+Requires: 
+Requires.private: libavutil >= 56.70.100
+Conflicts:
+Libs: -L${libdir}  -lswscale 
+Libs.private: -lm
+Cflags: -I${includedir}

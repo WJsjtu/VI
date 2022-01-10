@@ -1,0 +1,8 @@
+.vs
+.vscode
+build
+install
+ThirdParty/glew-cmake
+ThirdParty/glfw
+ThirdParty/ffmpeg
+ThirdParty/fmt

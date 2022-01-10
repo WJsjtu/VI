@@ -1,0 +1,14 @@
+prefix=/Users/runner/work/ffmpeg-osx/ffmpeg-osx/install
+exec_prefix=${prefix}
+libdir=/Users/runner/work/ffmpeg-osx/ffmpeg-osx/install/lib
+includedir=/Users/runner/work/ffmpeg-osx/ffmpeg-osx/install/include
+
+Name: libavformat
+Description: FFmpeg container format library
+Version: 58.76.100
+Requires: 
+Requires.private: libavcodec >= 58.134.100, libswresample >= 3.9.100, libavutil >= 56.70.100
+Conflicts:
+Libs: -L${libdir}  -lavformat 
+Libs.private: -lm -lbz2 -L/Users/runner/work/ffmpeg-osx/ffmpeg-osx/build/install/lib -lz -L/Users/runner/work/ffmpeg-osx/ffmpeg-osx/build/install/lib -lssl -lcrypto -L/Users/runner/work/ffmpeg-osx/ffmpeg-osx/build/install/lib -lrtmp -lz -lssl -lcrypto
+Cflags: -I${includedir}
