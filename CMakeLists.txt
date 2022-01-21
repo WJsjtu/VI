@@ -87,7 +87,7 @@ if(WIN32)
   endforeach()
 elseif (APPLE)
   file(REMOVE_RECURSE ${PROJECT_SOURCE_DIR}/ThirdParty/ffmpeg)
-  file(COPY "${PROJECT_SOURCE_DIR}/vendor/ffmpeg-4.4.1/darwin/${OSX_VERSION}" DESTINATION ${PROJECT_SOURCE_DIR}/ThirdParty VERBOSE)
+  file(COPY "${PROJECT_SOURCE_DIR}/vendor/ffmpeg-4.4.1/darwin/${OSX_VERSION}" DESTINATION "${PROJECT_SOURCE_DIR}/ThirdParty")
 
   set(DYLIBS 
     libavcodec.58.dylib 

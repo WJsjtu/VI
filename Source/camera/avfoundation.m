@@ -52,6 +52,7 @@
 #include "avfoundation.h"
 #include <Accelerate/Accelerate.h>
 #include "utils.h"
+#include "VI.h"
 
 #include <stdio.h>
 #include <ostream>
@@ -101,7 +102,7 @@ videoInput::videoInput(int cameraNum) {
     camNum = cameraNum;
     
     if (!startCaptureDevice(camNum)) {
-        Utils::LoggerPrintf(Utils::LogLevel::Error, "Camera failed to properly initialize!\n");
+        Utils::LoggerPrintf(VI::LogLevel::Error, "Camera failed to properly initialize!\n");
         started = 0;
     } else {
         started = 1;
@@ -118,8 +119,7 @@ bool videoInput::grabFrame(double timeOut) {
     NSAutoreleasePool *localpool = [[NSAutoreleasePool alloc] init];
     
     bool isGrabbed = false;
-    NSDate *limit = [NSDate dateWithTimeIntervalSinceNow:timeOut];
-    if ([mCapture grabImageUntilDate:limit]) {
+    if ([mCapture grabImageUntilDate]) {
         [mCapture updateImage];
         isGrabbed = true;
     }
@@ -128,7 +128,7 @@ bool videoInput::grabFrame(double timeOut) {
     return isGrabbed;
 }
 
-void videoInput::retrieveFrame(uint8_t* buffer) { return [mCapture getOutput:buffer] ; }
+void videoInput::retrieveFrame(uint8_t* buffer, bool rgb, bool flipX, bool flipY) { return [mCapture getOutput:buffer forRGB:rgb forFlipX:flipX forFlipY:flipY] ; }
 
 void videoInput::stopCaptureDevice() {
     NSAutoreleasePool *localpool = [[NSAutoreleasePool alloc] init];
@@ -153,7 +153,7 @@ std::vector<std::string> videoInput::getDeviceList() {
         AVAuthorizationStatus status =
         [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
         if (status == AVAuthorizationStatusDenied) {
-            Utils::LoggerPrintf(Utils::LogLevel::Error,
+            Utils::LoggerPrintf(VI::LogLevel::Error,
                                 "Camera access has been denied. Either run 'tccutil reset "
                                 "Camera' "
                                 "command in same terminal to reset application authorization status, "
@@ -162,7 +162,7 @@ std::vector<std::string> videoInput::getDeviceList() {
             [localpool drain];
             return result;
         } else if (status != AVAuthorizationStatusAuthorized) {
-            Utils::LoggerPrintf(Utils::LogLevel::Warning,
+            Utils::LoggerPrintf(VI::LogLevel::Warning,
                                 "Not authorized to capture video (status %ld), "
                                 "requesting...\n",
                                 status);
@@ -174,7 +174,7 @@ std::vector<std::string> videoInput::getDeviceList() {
                 [[NSRunLoop mainRunLoop]
                  runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
             } else {
-                Utils::LoggerPrintf(Utils::LogLevel::Error,
+                Utils::LoggerPrintf(VI::LogLevel::Error,
                                     "Can not spin main run loop from other thread, set "
                                     "OPENCV_AVFOUNDATION_SKIP_AUTH=1 to disable authorization "
                                     "request "
@@ -192,7 +192,7 @@ std::vector<std::string> videoInput::getDeviceList() {
                                                        devicesWithMediaType:AVMediaTypeMuxed]];
     
     if (devices.count == 0) {
-        Utils::LoggerPrintf(Utils::LogLevel::Error,
+        Utils::LoggerPrintf(VI::LogLevel::Error,
                             "AVFoundation didn't find any attached Video Input Devices!\n");
         [localpool drain];
         return result;
@@ -220,7 +220,7 @@ int videoInput::startCaptureDevice(int cameraNum) {
         AVAuthorizationStatus status =
         [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
         if (status == AVAuthorizationStatusDenied) {
-            Utils::LoggerPrintf(Utils::LogLevel::Error,
+            Utils::LoggerPrintf(VI::LogLevel::Error,
                                 "Camera access has been denied. Either run 'tccutil reset "
                                 "Camera' "
                                 "command in same terminal to reset application authorization status, "
@@ -229,7 +229,7 @@ int videoInput::startCaptureDevice(int cameraNum) {
             [localpool drain];
             return 0;
         } else if (status != AVAuthorizationStatusAuthorized) {
-            Utils::LoggerPrintf(Utils::LogLevel::Warning,
+            Utils::LoggerPrintf(VI::LogLevel::Warning,
                                 "Not authorized to capture video (status %ld), "
                                 "requesting...\n",
                                 status);
@@ -241,7 +241,7 @@ int videoInput::startCaptureDevice(int cameraNum) {
                 [[NSRunLoop mainRunLoop]
                  runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
             } else {
-                Utils::LoggerPrintf(Utils::LogLevel::Error,
+                Utils::LoggerPrintf(VI::LogLevel::Error,
                                     "Can not spin main run loop from other thread, set "
                                     "OPENCV_AVFOUNDATION_SKIP_AUTH=1 to disable authorization "
                                     "request "
@@ -259,14 +259,14 @@ int videoInput::startCaptureDevice(int cameraNum) {
                                                        devicesWithMediaType:AVMediaTypeMuxed]];
     
     if (devices.count == 0) {
-        Utils::LoggerPrintf(Utils::LogLevel::Error,
+        Utils::LoggerPrintf(VI::LogLevel::Error,
                             "AVFoundation didn't find any attached Video Input Devices!\n");
         [localpool drain];
         return 0;
     }
     
     if (cameraNum < 0 || devices.count <= NSUInteger(cameraNum)) {
-        Utils::LoggerPrintf(Utils::LogLevel::Error, "Out device of bound (0-%ld): %d\n",
+        Utils::LoggerPrintf(VI::LogLevel::Error, "Out device of bound (0-%ld): %d\n",
                             devices.count - 1, cameraNum);
         [localpool drain];
         return 0;
@@ -275,7 +275,7 @@ int videoInput::startCaptureDevice(int cameraNum) {
     mCaptureDevice = devices[cameraNum];
     
     if (!mCaptureDevice) {
-        Utils::LoggerPrintf(Utils::LogLevel::Error, "Device %d not able to use.\n", cameraNum);
+        Utils::LoggerPrintf(VI::LogLevel::Error, "Device %d not able to use.\n", cameraNum);
         [localpool drain];
         return 0;
     }
@@ -285,7 +285,7 @@ int videoInput::startCaptureDevice(int cameraNum) {
     mCaptureDeviceInput =
     [[AVCaptureDeviceInput alloc] initWithDevice:mCaptureDevice error:&error];
     if (error) {
-        Utils::LoggerPrintf(Utils::LogLevel::Error, "Error in [AVCaptureDeviceInput initWithDevice:error:]\n");
+        Utils::LoggerPrintf(VI::LogLevel::Error, "Error in [AVCaptureDeviceInput initWithDevice:error:]\n");
         NSLog(@"OpenCV: %@", error.localizedDescription);
         [localpool drain];
         return 0;
@@ -457,18 +457,24 @@ bool videoInput::setProperty(PROPERTY property_id, double value) {
 
 - (id)init {
     [super init];
-    mFrameNumber = 0;
-    mLastFrameNumber = -1;
+    std::mutex newFrameMutex;
+    bool mHasNewFrame = false;
     mCurrentImageBuffer = NULL;
     mGrabbedPixels = NULL;
     mDeviceImage = NULL;
-    mDeviceImageFlipX = NULL;
+    mOutImageData = NULL;
+    mOutImageDataFlip = NULL;
     currSize = 0;
     return self;
 }
 
 - (void)dealloc {
-    free(mDeviceImageFlipX);
+    if(mOutImageData) {
+      free(mOutImageData);
+    }
+    if(mOutImageDataFlip) {
+      free(mOutImageDataFlip);
+    }
     cvReleaseImage(&mDeviceImage);
     CVBufferRelease(mCurrentImageBuffer);
     CVBufferRelease(mGrabbedPixels);
@@ -485,17 +491,39 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     CVBufferRetain(imageBuffer);
     
+    std::lock_guard<std::mutex> lk(newFrameMutex);
     CVBufferRelease(mCurrentImageBuffer);
     mCurrentImageBuffer = imageBuffer;
-    mFrameNumber++;
+    mHasNewFrame = true;
 }
 
-- (void)getOutput:(uint8_t *)buffer {
+- (void)getOutput:(uint8_t *)buffer forRGB:(bool)rgb forFlipX:(bool)flipX forFlipY:(bool)flipY {
+    if (mDeviceImage == NULL) {
+        return;
+    }
     vImage_Buffer src_buffer;
-    src_buffer.data = mDeviceImageFlipX;
+    src_buffer.data = mOutImageData;
     src_buffer.width = mDeviceImage->width;
     src_buffer.height = mDeviceImage->height;
     src_buffer.rowBytes = mDeviceImage->rowBytes;
+    
+    vImage_Buffer flip_buffer;
+    flip_buffer.data = mOutImageDataFlip;
+    flip_buffer.width = mDeviceImage->width;
+    flip_buffer.height = mDeviceImage->height;
+    flip_buffer.rowBytes = mDeviceImage->width * 4;
+    
+    bool flip_buffer_written = false;
+    
+    if(flipX) {
+        vImageHorizontalReflect_ARGB8888(flip_buffer_written ? &flip_buffer : &src_buffer, &flip_buffer, kvImageDoNotTile);
+        flip_buffer_written = true;
+    }
+    
+    if(flipY) {
+        vImageVerticalReflect_ARGB8888(flip_buffer_written ? &flip_buffer : &src_buffer, &flip_buffer, kvImageDoNotTile);
+        flip_buffer_written = true;
+    }
     
     vImage_Buffer dst_buffer;
     dst_buffer.data = buffer;
@@ -503,17 +531,22 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     dst_buffer.height = mDeviceImage->height;
     dst_buffer.rowBytes = mDeviceImage->width * 3;
     
-    vImageConvert_BGRA8888toRGB888(&src_buffer, &dst_buffer, kvImageDoNotTile);
+    if(rgb) {
+        vImageConvert_BGRA8888toRGB888(flip_buffer_written ? &flip_buffer : &src_buffer, &dst_buffer, kvImageDoNotTile);
+    } else {
+        vImageConvert_BGRA8888toBGR888(flip_buffer_written ? &flip_buffer : &src_buffer, &dst_buffer, kvImageDoNotTile);
+    }
 }
 
-- (BOOL)grabImageUntilDate:(NSDate *)limit {
+- (BOOL)grabImageUntilDate {
     BOOL isGrabbed = NO;
+    std::lock_guard<std::mutex> lk(newFrameMutex);
     
     if (mGrabbedPixels) {
         CVBufferRelease(mGrabbedPixels);
     }
-    if (mLastFrameNumber != mFrameNumber) {
-        mLastFrameNumber = mFrameNumber;
+    if (mHasNewFrame) {
+        mHasNewFrame = false;
         isGrabbed = YES;
         mGrabbedPixels = CVBufferRetain(mCurrentImageBuffer);
     }
@@ -535,7 +568,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     OSType pixelFormat = CVPixelBufferGetPixelFormatType(mGrabbedPixels);
     
     if (rowBytes == 0) {
-        Utils::LoggerPrintf(Utils::LogLevel::Error, "Error: rowBytes == 0\n");
+        Utils::LoggerPrintf(VI::LogLevel::Error, "Error: rowBytes == 0\n");
         CVPixelBufferUnlockBaseAddress(mGrabbedPixels, 0);
         CVBufferRelease(mGrabbedPixels);
         mGrabbedPixels = NULL;
@@ -544,8 +577,14 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     
     if (currSize != width * 4 * height) {
         currSize = width * 4 * height;
-        free(mDeviceImageFlipX);
-        mDeviceImageFlipX = reinterpret_cast<uint8_t *>(malloc(currSize));
+        if(mOutImageData) {
+          free(mOutImageData);
+        }
+        if(mOutImageDataFlip) {
+          free(mOutImageDataFlip);
+        }
+        mOutImageData = reinterpret_cast<uint8_t *>(malloc(currSize));
+        mOutImageDataFlip = reinterpret_cast<uint8_t *>(malloc(currSize));
     }
     
     if (pixelFormat == kCVPixelFormatType_32BGRA) {
@@ -557,23 +596,9 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
         mDeviceImage->nChannels = 4;
         mDeviceImage->rowBytes = rowBytes;
         mDeviceImage->imageData = reinterpret_cast<char *>(baseaddress);
-        
-        vImage_Buffer src_buffer;
-        src_buffer.data = mDeviceImage->imageData;
-        src_buffer.width = width;
-        src_buffer.height = height;
-        src_buffer.rowBytes = rowBytes;
-        
-        vImage_Buffer src_buffer_flipX;
-        src_buffer_flipX.data = mDeviceImageFlipX;
-        src_buffer_flipX.width = width;
-        src_buffer_flipX.height = height;
-        src_buffer_flipX.rowBytes = rowBytes;
-        
-        vImageHorizontalReflect_ARGB8888(&src_buffer, &src_buffer_flipX, kvImageNoFlags);
-        
+        memcpy(mOutImageData, reinterpret_cast<char *>(baseaddress), currSize);
     } else {
-        Utils::LoggerPrintf(Utils::LogLevel::Error, "Unknown pixel format 0x%08X\n", pixelFormat);
+        Utils::LoggerPrintf(VI::LogLevel::Error, "Unknown pixel format 0x%08X\n", pixelFormat);
         CVPixelBufferUnlockBaseAddress(mGrabbedPixels, 0);
         CVBufferRelease(mGrabbedPixels);
         mGrabbedPixels = NULL;

@@ -1,6 +1,4 @@
 #pragma once
-#pragma warning(disable : 4251)
-#pragma warning(disable : 4275)
 
 #ifdef _WIN32
 #ifdef VI_DLL
@@ -25,7 +23,7 @@
 namespace VI {
 
 template <typename T>
-class VI_PORT LinkedList {
+class LinkedList {
 private:
     class ListNode {
     private:
@@ -56,6 +54,36 @@ private:
     size_t _size;
 
 public:
+    class ListNodeException {
+    public:
+        ListNodeException() = delete;
+        ListNodeException(const char* message) {
+            size_t size = strlen(message);
+            _message = new char[size + 1];
+            _message[size] = '\0';
+            memcpy(_message, message, size);
+        }
+        ListNodeException(const ListNodeException& error) {
+            size_t size = strlen(error._message);
+            _message = new char[size + 1];
+            _message[size] = '\0';
+            memcpy(_message, error._message, size);
+        }
+        ListNodeException(ListNodeException&& error) {
+            _message = error._message;
+            error._message = NULL;
+        }
+        ~ListNodeException() {
+            if (_message) {
+                delete[] _message;
+                _message = NULL;
+            }
+        }
+        const char* what() { return _message; }
+
+    private:
+        char* _message = NULL;
+    };
     LinkedList() : _head(nullptr), _tail(nullptr), _size(0) {}
     LinkedList(const LinkedList<T>& list) : _head(nullptr), _tail(nullptr), _size(0) {
         for (size_t i = 0; i < list.size(); i++) {
@@ -108,8 +136,9 @@ public:
             if (index == 0) _head = newElement;
             if (index == _size - 1) _tail = newElement->_next;
             ++_size;
-        } else
-            throw std::out_of_range("LinkedList :: add(index, value)");
+        } else {
+            throw ListNodeException("LinkedList :: add(index, value)");
+        }
     }
     T remove(size_t index) {
         if (index >= 0 && index < _size) {
@@ -124,8 +153,9 @@ public:
             node->_prev = nullptr;
             --_size;
             return node->_value;
-        } else
-            throw std::out_of_range("LinkedList :: remove(index)");
+        } else {
+            throw ListNodeException("LinkedList :: remove(index)");
+        }
     }
     void clear() {
         if (_size != 0) {
@@ -151,8 +181,9 @@ public:
             ListNode* node = _head;
             for (size_t i = 0; i < index; ++i) node = node->_next;
             return node->_value;
-        } else
-            throw std::out_of_range("LinkedList :: get(index)");
+        } else {
+            throw ListNodeException("LinkedList :: get(index)");
+        }
     }
     T set(size_t index, const T& value) {
         if (index >= 0 && index < _size) {
@@ -161,8 +192,9 @@ public:
             T tmp = node->_value;
             node->_value = value;
             return tmp;
-        } else
-            throw std::out_of_range("LinkedList :: set(index, value)");
+        } else {
+            throw ListNodeException("LinkedList :: set(index, value)");
+        }
     }
     bool swap(size_t index1, size_t index2) {
         if (index1 >= 0 && index1 < _size && index2 >= 0 && index2 < _size) {
@@ -189,11 +221,11 @@ public:
             ListNode* node = _head;
             for (size_t i = 0; i < index; ++i) node = node->_next;
             return node->_value;
-        } else
-            throw std::out_of_range("LinkedList :: operator [index]");
+        } else {
+            throw ListNodeException("LinkedList :: operator [index]");
+        }
     }
 };
-
 
 class VI_PORT String {
 public:
@@ -229,7 +261,7 @@ public:
     bool isDeviceSetup();
 
     // Or pass in a buffer for getPixels to fill returns true if successful.
-    bool getPixels(unsigned char* pixels);
+    bool getPixels(unsigned char* pixels, bool rgb = false, bool flipX = true, bool flipY = false);
 
     // Launches a pop up settings window
     // For some reason in GLUT you have to call it twice each time.
@@ -262,7 +294,7 @@ public:
     void seekFrame(int64_t frame_number);
     void seekTime(double sec);
 
-    bool retrieveFrame(double sec, unsigned char** data);
+    bool retrieveFrame(double sec, unsigned char** data, bool rgb = false);
 
 private:
     void* m_handle;
@@ -270,5 +302,10 @@ private:
 
 enum class VI_PORT LogLevel { Debug = 1, Info = 2, Warning = 3, Error = 4 };
 
-void VI_PORT SetGlobalLogger(void (*fn)(LogLevel, const char*));
+struct VI_PORT Logger {
+public:
+    void virtual onMessage(LogLevel, const char*){};
+};
+
+void VI_PORT SetGlobalLogger(Logger* logger);
 }  // namespace VI

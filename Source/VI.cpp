@@ -164,13 +164,13 @@ bool Camera::isDeviceSetup() {
 }
 
 // Or pass in a buffer for getPixels to fill returns true if successful.
-bool Camera::getPixels(unsigned char* pixels) {
+bool Camera::getPixels(unsigned char* pixels, bool rgb, bool flipX, bool flipY) {
     if (!((CameraInfo*)(m_handle))->bSuccess) {
         return false;
     }
     int deviceID = ((CameraInfo*)(m_handle))->deviceID;
     if (deviceID >= 0) {
-        return GlobalVideoInput.getPixels(deviceID, pixels, true, true, true);
+        return GlobalVideoInput.getPixels(deviceID, pixels, rgb, flipX, !flipY);
     } else {
         return false;
     }
@@ -216,12 +216,12 @@ int Camera::getHeight() {
 }
 
 #elif __APPLE__
-Vector<String<char>> Camera::getDeviceList() {
+LinkedList<String> Camera::getDeviceList() {
     auto list = videoInput::getDeviceList();
-    Vector<String<char>> result;
+    LinkedList<String> result;
     for (auto& item : list) {
-        String<char> name(item.c_str(), item.size());
-        result.push_back(name);
+        String name(item.c_str(), item.size());
+        result.add(name);
     }
     return result;
 }
@@ -242,8 +242,8 @@ Camera::~Camera() {
         m_handle = NULL;
     }
 }
-bool Camera::getPixels(unsigned char* pixels) {
-    ((videoInput*)(m_handle))->retrieveFrame(pixels);
+bool Camera::getPixels(unsigned char* pixels, bool rgb, bool flipX, bool flipY) {
+    ((videoInput*)(m_handle))->retrieveFrame(pixels, rgb, flipX, flipY);
     return true;
 }
 void Camera::showSettingsWindow() {}
@@ -300,12 +300,12 @@ void Video::seekTime(double sec) {
     }
 }
 
-bool Video::retrieveFrame(double sec, unsigned char** data) {
+bool Video::retrieveFrame(double sec, unsigned char** data, bool rgb) {
     if (m_handle) {
         IVideoCaptureFrame frame;
         ((IVideoCapture*)(m_handle))->getProperty(CAP_PROP_POS_MSEC);
         ((IVideoCapture*)(m_handle))->seek(sec);
-        if (((IVideoCapture*)(m_handle))->retrieveFrame(0, frame)) {
+        if (((IVideoCapture*)(m_handle))->retrieveFrame(0, frame, rgb)) {
             memcpy(*data, frame.data, frame.width * frame.height * 3 * sizeof(char));
             return true;
         }
@@ -313,8 +313,5 @@ bool Video::retrieveFrame(double sec, unsigned char** data) {
     return false;
 }
 
-void SetGlobalLogger(void (*fn)(LogLevel, const char*)) {
-    typedef void (*LogFunc)(Utils::LogLevel, const char*);
-    Utils::SetGlobalLogger((LogFunc)fn);
-}
+void SetGlobalLogger(Logger* logger) { Utils::SetGlobalLogger(logger); }
 }  // namespace VI

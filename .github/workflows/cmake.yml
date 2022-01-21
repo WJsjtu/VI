@@ -11,12 +11,6 @@ jobs:
     runs-on: windows-2016
     steps:
       - uses: actions/checkout@master
-        with:
-          lfs: true
-      - name: Checkout LFS objects
-        run: |
-          git lfs pull
-          git lfs checkout
 
       - name: Configure CMake Debug
         run: cmake -B ${{github.workspace}}/Build/Debug -G "Visual Studio 15 2017" -A Win32 -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/Debug
@@ -40,12 +34,6 @@ jobs:
     runs-on: windows-2016
     steps:
       - uses: actions/checkout@master
-        with:
-          lfs: true
-      - name: Checkout LFS objects
-        run: |
-          git lfs pull
-          git lfs checkout
 
       - name: Configure CMake Debug
         run: cmake -B ${{github.workspace}}/Build/Debug -G "Visual Studio 15 2017" -A x64 -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/Debug
@@ -71,12 +59,6 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: 10.15
     steps:
       - uses: actions/checkout@master
-        with:
-          lfs: true
-      - name: Checkout LFS objects
-        run: |
-          git lfs pull
-          git lfs checkout
 
       - name: Configure CMake Debug
         run: cmake -B ${{github.workspace}}/Build/Debug -G Xcode -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/Debug
@@ -101,12 +83,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-        with:
-          lfs: true
-      - name: Checkout LFS objects
-        run: |
-          git lfs pull
-          git lfs checkout
 
       - uses: actions/download-artifact@master
         with:

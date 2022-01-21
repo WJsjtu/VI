@@ -8,13 +8,14 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <thread>
 
 struct IplImage {
-  int nChannels;
-  int rowBytes;
-  int width;
-  int height;
-  char *imageData;
+    int nChannels;
+    int rowBytes;
+    int width;
+    int height;
+    char* imageData;
 };
 
 /********************** Declaration of class headers ************************/
@@ -31,24 +32,22 @@ struct IplImage {
  *
  *****************************************************************************/
 
-@interface CaptureDelegate
-    : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate> {
-  uint64_t mFrameNumber;
-  uint64_t mLastFrameNumber;
-  CVPixelBufferRef mGrabbedPixels;
-  CVImageBufferRef mCurrentImageBuffer;
-  IplImage *mDeviceImage;
-  uint8_t *mDeviceImageFlipX;
-  size_t currSize;
+@interface CaptureDelegate : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate> {
+    std::mutex newFrameMutex;
+    bool mHasNewFrame;
+    CVPixelBufferRef mGrabbedPixels;
+    CVImageBufferRef mCurrentImageBuffer;
+    IplImage* mDeviceImage;
+    uint8_t* mOutImageData;
+    uint8_t* mOutImageDataFlip;
+    size_t currSize;
 }
 
-- (void)captureOutput:(AVCaptureOutput *)captureOutput
-    didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
-           fromConnection:(AVCaptureConnection *)connection;
+- (void)captureOutput:(AVCaptureOutput*)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection*)connection;
 
-- (BOOL)grabImageUntilDate:(NSDate *)limit;
+- (BOOL)grabImageUntilDate;
 - (int)updateImage;
-- (void)getOutput:(uint8_t *)buffer;
+- (void)getOutput:(uint8_t*)buffer forRGB:(bool)rgb forFlipX:(bool)flipX forFlipY:(bool)flipY;
 
 @end
 
@@ -60,43 +59,39 @@ struct IplImage {
  *
  *****************************************************************************/
 
-enum PROPERTY {
-  CV_CAP_PROP_FRAME_WIDTH,
-  CV_CAP_PROP_FRAME_HEIGHT,
-  CV_CAP_PROP_FPS
-};
+enum PROPERTY { CV_CAP_PROP_FRAME_WIDTH, CV_CAP_PROP_FRAME_HEIGHT, CV_CAP_PROP_FPS };
 
 class videoInput {
 public:
-  static std::vector<std::string> getDeviceList();
-  videoInput(int cameraNum = -1);
-  ~videoInput();
-  bool grabFrame();
-  void retrieveFrame(uint8_t* buffer);
-  double getProperty(PROPERTY property_id) const;
-  bool setProperty(PROPERTY property_id, double value);
+    static std::vector<std::string> getDeviceList();
+    videoInput(int cameraNum = -1);
+    ~videoInput();
+    bool grabFrame();
+    void retrieveFrame(uint8_t* buffer, bool rgb, bool flipX, bool flipY);
+    double getProperty(PROPERTY property_id) const;
+    bool setProperty(PROPERTY property_id, double value);
 
-  int didStart();
+    int didStart();
 
 private:
-  AVCaptureSession *mCaptureSession;
-  AVCaptureDeviceInput *mCaptureDeviceInput;
-  AVCaptureVideoDataOutput *mCaptureVideoDataOutput;
-  AVCaptureDevice *mCaptureDevice;
-  CaptureDelegate *mCapture;
+    AVCaptureSession* mCaptureSession;
+    AVCaptureDeviceInput* mCaptureDeviceInput;
+    AVCaptureVideoDataOutput* mCaptureVideoDataOutput;
+    AVCaptureDevice* mCaptureDevice;
+    CaptureDelegate* mCapture;
 
-  int startCaptureDevice(int cameraNum);
-  void stopCaptureDevice();
+    int startCaptureDevice(int cameraNum);
+    void stopCaptureDevice();
 
-  void setWidthHeight();
-  bool grabFrame(double timeOut);
+    void setWidthHeight();
+    bool grabFrame(double timeOut);
 
-  int camNum;
-  int width;
-  int height;
-  int settingWidth;
-  int settingHeight;
+    int camNum;
+    int width;
+    int height;
+    int settingWidth;
+    int settingHeight;
 
-  int started;
+    int started;
 };
 #endif

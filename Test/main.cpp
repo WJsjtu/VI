@@ -143,6 +143,7 @@ void main()\n\
 	FragColor = vec4(grey, grey, grey, 1.0);\n\
 	FragColor = color;\n\
 	// FragColor = vec4(vec3(1.0 - color.x, 1.0 - color.y, 1.0 - color.z) * (0.7 + 0.3 * sin(TexCoord.x * 5 * 3.1415926)), 1.0);\n\
+	FragColor.rgb = FragColor.bgr;\n\
 }";
     const char* vShaderCode = vs.c_str();
     const char* fShaderCode = fs.c_str();
