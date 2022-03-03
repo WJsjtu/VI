@@ -51,25 +51,35 @@ const size_t String::size() const { return m_size; }
 std::unordered_map<int, uint32_t> GlobalDeviceUsage;
 std::mutex GlobalDeviceUsageMutex;
 
-videoInput GlobalVideoInput;
+std::shared_ptr<videoInput> GlobalVideoInput = nullptr;
+
+videoInput& GetGlobalVideoInput() {
+    if (!GlobalVideoInput) {
+        GlobalVideoInput = std::make_shared<videoInput>();
+    }
+    return *GlobalVideoInput;
+}
 
 struct CameraInfo {
     int deviceID;
     bool bSuccess;
 };
 
+void Camera::setVerbose(bool verbose) { videoInput::setVerbose(verbose); }
+void Camera::setComMultiThreaded(bool bMulti) { videoInput::setComMultiThreaded(bMulti); }
+
 Camera::Camera(int deviceID) {
-    int numDevices = GlobalVideoInput.listDevices();
-    GlobalVideoInput.setUseCallback(true);
+    int numDevices = GetGlobalVideoInput().listDevices();
+    GetGlobalVideoInput().setUseCallback(true);
     bool success = false;
     if (deviceID >= 0 && deviceID < numDevices) {
         std::lock_guard<std::mutex> lk(GlobalDeviceUsageMutex);
         if (GlobalDeviceUsage.find(deviceID) == GlobalDeviceUsage.end()) {
-            success = GlobalVideoInput.setupDevice(deviceID);
+            success = GetGlobalVideoInput().setupDevice(deviceID);
             GlobalDeviceUsage.emplace(deviceID, 0);
         } else {
             GlobalDeviceUsage[deviceID]++;
-            success = GlobalVideoInput.isDeviceSetup(deviceID);
+            success = GetGlobalVideoInput().isDeviceSetup(deviceID);
         }
     } else {
         deviceID = -1;
@@ -82,17 +92,17 @@ Camera::Camera(int deviceID) {
 }
 
 Camera::Camera(int deviceID, int width, int height, int fps) {
-    int numDevices = GlobalVideoInput.listDevices();
-    GlobalVideoInput.setUseCallback(true);
+    int numDevices = GetGlobalVideoInput().listDevices();
+    GetGlobalVideoInput().setUseCallback(true);
     bool success = false;
     if (deviceID >= 0 && deviceID < numDevices) {
         std::lock_guard<std::mutex> lk(GlobalDeviceUsageMutex);
         if (GlobalDeviceUsage.find(deviceID) == GlobalDeviceUsage.end()) {
-            success = GlobalVideoInput.setupDevice(deviceID, width, height);
+            success = GetGlobalVideoInput().setupDevice(deviceID, width, height);
             GlobalDeviceUsage.emplace(deviceID, 1);
         } else {
             GlobalDeviceUsage[deviceID]++;
-            success = GlobalVideoInput.isDeviceSetup(deviceID);
+            success = GetGlobalVideoInput().isDeviceSetup(deviceID);
         }
     } else {
         deviceID = -1;
@@ -102,7 +112,7 @@ Camera::Camera(int deviceID, int width, int height, int fps) {
     info->deviceID = deviceID;
     info->bSuccess = success;
     if (success && fps) {
-        GlobalVideoInput.setIdealFramerate(deviceID, fps);
+        GetGlobalVideoInput().setIdealFramerate(deviceID, fps);
     }
     m_handle = info;
 }
@@ -117,7 +127,7 @@ Camera::~Camera() {
                 usage->second--;
                 if (usage->second == 0) {
                     GlobalDeviceUsage.erase(usage);
-                    GlobalVideoInput.stopDevice(deviceID);
+                    GetGlobalVideoInput().stopDevice(deviceID);
                 }
             }
         }
@@ -145,7 +155,7 @@ bool Camera::isFrameNew() {
     }
     int deviceID = ((CameraInfo*)(m_handle))->deviceID;
     if (deviceID >= 0) {
-        return GlobalVideoInput.isFrameNew(deviceID);
+        return GetGlobalVideoInput().isFrameNew(deviceID);
     } else {
         return false;
     }
@@ -157,7 +167,7 @@ bool Camera::isDeviceSetup() {
     }
     int deviceID = ((CameraInfo*)(m_handle))->deviceID;
     if (deviceID >= 0) {
-        return GlobalVideoInput.isDeviceSetup(deviceID);
+        return GetGlobalVideoInput().isDeviceSetup(deviceID);
     } else {
         return false;
     }
@@ -170,7 +180,7 @@ bool Camera::getPixels(unsigned char* pixels, bool rgb, bool flipX, bool flipY) 
     }
     int deviceID = ((CameraInfo*)(m_handle))->deviceID;
     if (deviceID >= 0) {
-        return GlobalVideoInput.getPixels(deviceID, pixels, rgb, flipX, !flipY);
+        return GetGlobalVideoInput().getPixels(deviceID, pixels, rgb, flipX, !flipY);
     } else {
         return false;
     }
@@ -184,7 +194,7 @@ void Camera::showSettingsWindow() {
     }
     int deviceID = ((CameraInfo*)(m_handle))->deviceID;
     if (deviceID >= 0) {
-        return GlobalVideoInput.showSettingsWindow(deviceID);
+        return GetGlobalVideoInput().showSettingsWindow(deviceID);
     } else {
         return;
     }
@@ -197,7 +207,7 @@ int Camera::getWidth() {
     }
     int deviceID = ((CameraInfo*)(m_handle))->deviceID;
     if (deviceID >= 0) {
-        return GlobalVideoInput.getWidth(deviceID);
+        return GetGlobalVideoInput().getWidth(deviceID);
     } else {
         return 0;
     }
@@ -209,7 +219,7 @@ int Camera::getHeight() {
     }
     int deviceID = ((CameraInfo*)(m_handle))->deviceID;
     if (deviceID >= 0) {
-        return GlobalVideoInput.getHeight(deviceID);
+        return GetGlobalVideoInput().getHeight(deviceID);
     } else {
         return 0;
     }

@@ -254,6 +254,11 @@ public:
 
     static LinkedList<String> getDeviceList();
 
+#if defined(WIN32)
+    static void setVerbose(bool verbose);
+    static void setComMultiThreaded(bool bMulti);
+#endif
+
     // Tells you when a new frame has arrived - you should call this if you have
     // specified setAutoReconnectOnFreeze to true
     bool isFrameNew();
